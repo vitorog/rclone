@@ -1338,6 +1338,67 @@ func (f *Fs) OpenWriterAt(ctx context.Context, remote string, size int64) (fs.Wr
 	return out, nil
 }
 
+func (f *Fs) OpenChunkWriter(ctx context.Context, src fs.ObjectInfo, options ...fs.OpenOption) (chunkSize int64, writer fs.ChunkWriter, err error) {
+	out, writerErr := f.OpenWriterAt(ctx, src.Remote(), src.Size())
+	if writerErr != nil {
+		return -1, nil, errors.New("failed to open chunk writer")
+	}
+
+	for _, opt := range options {
+		switch x := opt.(type) {
+		case *fs.ChunkOption:
+			chunkSize = x.ChunkSize
+		default:
+			// Do nothing
+		}
+	}
+
+	if chunkSize == 0 {
+		return -1, nil, errors.New("invalid chunkSize provided")
+	}
+
+	chunkWriter := &localChunkWriter{
+		file:      out,
+		chunkSize: chunkSize,
+		remote:    src.Remote(),
+		f:         f,
+	}
+	return chunkSize, chunkWriter, writerErr
+}
+
+type localChunkWriter struct {
+	file      fs.WriterAtCloser
+	chunkSize int64
+	remote    string
+	f         *Fs
+}
+
+func (w *localChunkWriter) WriteChunk(chunkNumber int, reader []byte) (int, error) {
+	offset := int64(chunkNumber) * w.chunkSize
+	n, err := w.file.WriteAt(reader, offset)
+	if err != nil {
+		return -1, errors.New("failed to write chunk")
+	}
+	fs.Debugf(w.remote, "wrote chunk %v with %v bytes", chunkNumber, n)
+	return n, nil
+}
+
+func (w *localChunkWriter) Abort() error {
+	err := os.Remove(w.f.localPath(w.remote))
+	if err != nil {
+		fs.Debugf(w.remote, "failed to delete temp file when aborting chunk writer: %v", err)
+	}
+	return w.Close()
+}
+
+func (w *localChunkWriter) Close() error {
+	err := w.file.Close()
+	if err != nil {
+		return errors.New("failed to close chunk writer")
+	}
+	return nil
+}
+
 // setMetadata sets the file info from the os.FileInfo passed in
 func (o *Object) setMetadata(info os.FileInfo) {
 	// if not checking updated then don't update the stat
@@ -1443,13 +1504,14 @@ func cleanRootPath(s string, noUNC bool, enc encoder.MultiEncoder) string {
 
 // Check the interfaces are satisfied
 var (
-	_ fs.Fs             = &Fs{}
-	_ fs.Purger         = &Fs{}
-	_ fs.PutStreamer    = &Fs{}
-	_ fs.Mover          = &Fs{}
-	_ fs.DirMover       = &Fs{}
-	_ fs.Commander      = &Fs{}
-	_ fs.OpenWriterAter = &Fs{}
-	_ fs.Object         = &Object{}
-	_ fs.Metadataer     = &Object{}
+	_ fs.Fs              = &Fs{}
+	_ fs.Purger          = &Fs{}
+	_ fs.PutStreamer     = &Fs{}
+	_ fs.Mover           = &Fs{}
+	_ fs.DirMover        = &Fs{}
+	_ fs.Commander       = &Fs{}
+	_ fs.OpenWriterAter  = &Fs{}
+	_ fs.OpenChunkWriter = &Fs{}
+	_ fs.Object          = &Object{}
+	_ fs.Metadataer      = &Object{}
 )
