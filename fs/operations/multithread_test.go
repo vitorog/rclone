@@ -104,7 +104,7 @@ func TestMultithreadCalculateChunks(t *testing.T) {
 				size:    test.size,
 				streams: test.streams,
 			}
-			mc.calculateChunks()
+			mc.partSize, mc.streams = calculateChunks(test.size, test.streams)
 			assert.Equal(t, test.wantPartSize, mc.partSize)
 			assert.Equal(t, test.wantStreams, mc.streams)
 		})
