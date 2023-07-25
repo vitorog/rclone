@@ -808,16 +808,16 @@ func Run(t *testing.T, opt *Opt) {
 			})
 			require.NoError(t, err)
 
-			var n int
-			n, err = out.WriteChunk(1, []byte(contents2))
+			var n int64
+			n, err = out.WriteChunk(1, strings.NewReader(contents2))
 			assert.NoError(t, err)
-			assert.Equal(t, size5MBs, n)
-			n, err = out.WriteChunk(2, []byte(contents3))
+			assert.Equal(t, int64(size5MBs), n)
+			n, err = out.WriteChunk(2, strings.NewReader(contents3))
 			assert.NoError(t, err)
-			assert.Equal(t, size1MB, n)
-			n, err = out.WriteChunk(0, []byte(contents1))
+			assert.Equal(t, int64(size1MB), n)
+			n, err = out.WriteChunk(0, strings.NewReader(contents1))
 			assert.NoError(t, err)
-			assert.Equal(t, size5MBs, n)
+			assert.Equal(t, int64(size5MBs), n)
 
 			assert.NoError(t, out.Close())
 
