@@ -5354,7 +5354,7 @@ func (f *Fs) OpenChunkWriter(ctx context.Context, src fs.ObjectInfo, options ...
 				f.opt.ChunkSize, fs.SizeSuffix(int64(chunkSize)*int64(uploadParts)))
 		})
 	} else {
-		chunkSize = chunksize.Calculator(src, size, uploadParts, f.opt.ChunkSize)
+		chunkSize = chunksize.Calculator(src, size, uploadParts, chunkSize)
 	}
 
 	mOut, err := f.c.CreateMultipartUploadWithContext(ctx, &mReq)
@@ -5394,14 +5394,13 @@ type s3ChunkWriter struct {
 	md5s                 []byte
 }
 
-func (w *s3ChunkWriter) WriteChunk(chunkNumber int, buf []byte) (int, error) {
+func (w *s3ChunkWriter) WriteChunk(chunkNumber int, reader io.ReadSeeker) (int64, error) {
 	if chunkNumber < 0 {
 		err := fmt.Errorf("invalid chunk number provided: %v", chunkNumber)
 		return -1, err
 	}
 
-	currentChunkSize := int64(len(buf))
-	addMd5 := func(md5binary *[md5.Size]byte, chunkNumber int64) {
+	addMd5 := func(md5binary *[]byte, chunkNumber int64) {
 		w.md5sMu.Lock()
 		defer w.md5sMu.Unlock()
 		start := chunkNumber * md5.Size
@@ -5413,14 +5412,27 @@ func (w *s3ChunkWriter) WriteChunk(chunkNumber int, buf []byte) (int, error) {
 	}
 
 	// create checksum of buffer for integrity checking
-	md5sumBinary := md5.Sum(buf)
+	// currently there is no way to calculate the md5 without reading the chunk a 2nd time (1st read is in uploadMultipart)
+	// possible in AWS SDK v2 with trailers?
+	m := md5.New()
+	currentChunkSize, err := io.Copy(m, reader)
+	if err != nil && err != io.EOF {
+		return -1, err
+	}
+	md5sumBinary := m.Sum([]byte{})
 	addMd5(&md5sumBinary, int64(chunkNumber))
 	md5sum := base64.StdEncoding.EncodeToString(md5sumBinary[:])
+
+	// reset the reader after we calculated the md5
+	_, err = reader.Seek(0, io.SeekStart)
+	if err != nil {
+		return -1, err
+	}
 
 	// S3 requires 1 <= PartNumber <= 10000
 	s3PartNumber := aws.Int64(int64(chunkNumber + 1))
 	uploadPartReq := &s3.UploadPartInput{
-		Body:                 bytes.NewReader(buf),
+		Body:                 reader,
 		Bucket:               w.bucket,
 		Key:                  w.key,
 		PartNumber:           s3PartNumber,
@@ -5448,8 +5460,8 @@ func (w *s3ChunkWriter) WriteChunk(chunkNumber int, buf []byte) (int, error) {
 	}
 	addCompletedPart(s3PartNumber, uout.ETag)
 
-	fs.Debugf(w.f, "multipart upload wrote chunk %d with %v bytes and etag %v", chunkNumber, currentChunkSize, *uout.ETag)
-	return len(buf), err
+	fs.Debugf(w.f, "multipart upload wrote chunk %d with %v bytes and etag %v", chunkNumber+1, currentChunkSize, *uout.ETag)
+	return currentChunkSize, err
 }
 
 func (w *s3ChunkWriter) Abort() error {
@@ -5578,7 +5590,7 @@ func (o *Object) uploadMultipart(ctx context.Context, src fs.ObjectInfo, in io.R
 		g.Go(func() (err error) {
 			defer free()
 			err = f.pacer.Call(func() (bool, error) {
-				_, err := chunkWriter.WriteChunk(int(partNum), buf)
+				_, err := chunkWriter.WriteChunk(int(partNum), bytes.NewReader(buf))
 				if err != nil {
 					if partNum <= int64(concurrency) {
 						return f.shouldRetry(gCtx, err)
