@@ -5522,7 +5522,7 @@ func (o *Object) uploadMultipart(ctx context.Context, src fs.ObjectInfo, in io.R
 	var chunkSize int64
 	err = f.pacer.Call(func() (bool, error) {
 		var err error
-		chunkSize, chunkWriter, err = openChunkWriter(ctx, src)
+		chunkSize, chunkWriter, err = openChunkWriter(ctx, src, o.Remote())
 		return f.shouldRetry(ctx, err)
 	})
 	if err != nil {
