@@ -155,7 +155,7 @@ type Features struct {
 	// Pass in the src object
 	// You can also use options to hint at the desired chunk size
 	//
-	OpenChunkWriter func(ctx context.Context, src ObjectInfo, options ...OpenOption) (chunkSize int64, writer ChunkWriter, err error)
+	OpenChunkWriter func(ctx context.Context, src ObjectInfo, remote string, options ...OpenOption) (chunkSize int64, writer ChunkWriter, err error)
 
 	// UserInfo returns info about the connected user
 	UserInfo func(ctx context.Context) (map[string]string, error)
@@ -641,7 +641,7 @@ type OpenChunkWriter interface {
 	//
 	// Pass in the src object
 	// You can also use options to hint at the desired chunk size
-	OpenChunkWriter(ctx context.Context, src ObjectInfo, options ...OpenOption) (chunkSize int64, writer ChunkWriter, err error)
+	OpenChunkWriter(ctx context.Context, src ObjectInfo, remote string, options ...OpenOption) (chunkSize int64, writer ChunkWriter, err error)
 }
 
 type ChunkWriter interface {
