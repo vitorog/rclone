@@ -169,7 +169,7 @@ func multiThreadCopy(ctx context.Context, f fs.Fs, remote string, src fs.Object,
 		if openWriterAt == nil {
 			return nil, errors.New("multi-part copy: neither OpenChunkWriter nor OpenWriterAt supported")
 		}
-		openChunkWriter = openChunkWriterFromOpenWriterAt(openWriterAt, int64(ci.MultiThreadWriteBufferSize), streams, f)
+		openChunkWriter = openChunkWriterFromOpenWriterAt(openWriterAt, int64(ci.MultiThreadWriteBufferSize), streams, f, remote)
 	}
 
 	if src.Size() < 0 {
@@ -180,7 +180,7 @@ func multiThreadCopy(ctx context.Context, f fs.Fs, remote string, src fs.Object,
 	}
 
 	g, gCtx := errgroup.WithContext(ctx)
-	chunkSize, chunkWriter, err := openChunkWriter(ctx, src)
+	chunkSize, chunkWriter, err := openChunkWriter(ctx, src, remote)
 	numChunks := src.Size() / chunkSize
 	if src.Size()%chunkSize != 0 {
 		numChunks++
@@ -294,8 +294,8 @@ func (w writerAtChunkWriter) Abort() error {
 	return obj.Remove(w.ctx)
 }
 
-func openChunkWriterFromOpenWriterAt(openWriterAt func(ctx context.Context, remote string, size int64) (fs.WriterAtCloser, error), writeBufferSize int64, streams int, f fs.Fs) func(ctx context.Context, src fs.ObjectInfo, options ...fs.OpenOption) (chunkSizeResult int64, writer fs.ChunkWriter, err error) {
-	return func(ctx context.Context, src fs.ObjectInfo, options ...fs.OpenOption) (chunkSizeResult int64, writer fs.ChunkWriter, err error) {
+func openChunkWriterFromOpenWriterAt(openWriterAt func(ctx context.Context, remote string, size int64) (fs.WriterAtCloser, error), writeBufferSize int64, streams int, f fs.Fs, remote string) func(ctx context.Context, src fs.ObjectInfo, remote string, options ...fs.OpenOption) (chunkSizeResult int64, writer fs.ChunkWriter, err error) {
+	return func(ctx context.Context, src fs.ObjectInfo, remote string, options ...fs.OpenOption) (chunkSizeResult int64, writer fs.ChunkWriter, err error) {
 		writerAt, err := openWriterAt(ctx, src.Remote(), src.Size())
 		if err != nil {
 			return -1, nil, err
@@ -308,7 +308,7 @@ func openChunkWriterFromOpenWriterAt(openWriterAt func(ctx context.Context, remo
 		chunkSize, numStreams := calculateChunks(src.Size(), streams)
 		chunkWriter := &writerAtChunkWriter{
 			ctx:             ctx,
-			remote:          src.Remote(),
+			remote:          remote,
 			size:            src.Size(),
 			chunkSize:       chunkSize,
 			chunks:          numStreams,
