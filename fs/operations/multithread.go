@@ -283,7 +283,7 @@ func (w writerAtChunkWriter) WriteChunk(chunkNumber int, reader io.ReadSeeker) (
 }
 
 func (w writerAtChunkWriter) Close() error {
-	return nil // NOP
+	return w.writerAt.Close()
 }
 
 func (w writerAtChunkWriter) Abort() error {
