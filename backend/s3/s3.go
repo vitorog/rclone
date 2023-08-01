@@ -5316,14 +5316,14 @@ func (o *Object) Open(ctx context.Context, options ...fs.OpenOption) (in io.Read
 
 var warnStreamUpload sync.Once
 
-func (f *Fs) OpenChunkWriter(ctx context.Context, src fs.ObjectInfo, options ...fs.OpenOption) (chunkSizeResult int64, writer fs.ChunkWriter, err error) {
+func (f *Fs) OpenChunkWriter(ctx context.Context, remote string, src fs.ObjectInfo, options ...fs.OpenOption) (chunkSizeResult int64, writer fs.ChunkWriter, err error) {
 
 	// This duplicates part of the logic in Update,
 	//however per my understanding it is required until we migrate the MultiPartUpload to OpenChunkWriter/multi-thread op completely
 	// Temporary Object under construction
 	o := &Object{
 		fs:     f,
-		remote: src.Remote(),
+		remote: remote,
 	}
 	req, _, err := o.buildS3Req(ctx, src, options)
 	if err != nil {
@@ -5522,7 +5522,7 @@ func (o *Object) uploadMultipart(ctx context.Context, src fs.ObjectInfo, in io.R
 	var chunkSize int64
 	err = f.pacer.Call(func() (bool, error) {
 		var err error
-		chunkSize, chunkWriter, err = openChunkWriter(ctx, src)
+		chunkSize, chunkWriter, err = openChunkWriter(ctx, src.Remote(), src)
 		return f.shouldRetry(ctx, err)
 	})
 	if err != nil {
