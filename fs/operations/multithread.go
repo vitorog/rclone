@@ -241,6 +241,7 @@ func multiThreadCopy(ctx context.Context, f fs.Fs, remote string, src fs.Object,
 	err = obj.SetModTime(ctx, src.ModTime(ctx))
 	switch err {
 	case nil, fs.ErrorCantSetModTime, fs.ErrorCantSetModTimeWithoutDelete:
+		fs.Debugf(f, "multi-thread copy: failed to set modification time BLAH: %w", err)
 	default:
 		fs.Debugf(f, "multi-thread copy: failed to set modification time: %w", err)
 		return nil, fmt.Errorf("multi-thread copy: failed to set modification time: %w", err)
