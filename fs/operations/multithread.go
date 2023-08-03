@@ -219,6 +219,7 @@ func multiThreadCopy(ctx context.Context, f fs.Fs, remote string, src fs.Object,
 	}
 
 	err = g.Wait()
+	fs.Debugf(f, "HERE!!!")
 	closeErr := chunkWriter.Close()
 	if err != nil {
 		fs.Debugf(f, "multi-thread copy: error when waiting for chunks: %w", err)
