@@ -5132,6 +5132,11 @@ func (o *Object) SetModTime(ctx context.Context, modTime time.Time) error {
 	if err != nil {
 		return err
 	}
+
+	// Do not copy over if metadata is already correct ?
+	if o.meta[metaMtime] == swift.TimeToFloatString(modTime) {
+		return nil
+	}
 	o.meta[metaMtime] = swift.TimeToFloatString(modTime)
 
 	fs.Debugf(o, "HERE 5!!!")
