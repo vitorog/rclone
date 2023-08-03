@@ -133,6 +133,7 @@ func (mc *multiThreadCopyState) copyStream(ctx context.Context, stream int, writ
 	// however to ensure report works correctly writer.WriteChunk must only reads once (not the case with S3 and md5 calculation...)
 	errAccRead := mc.acc.AccountRead(int(bytesWritten))
 	if errAccRead != nil {
+		fs.Debugf(mc.src, "multi-thread copy: account reader err", errAccRead)
 		return errAccRead
 	}
 
@@ -219,6 +220,7 @@ func multiThreadCopy(ctx context.Context, f fs.Fs, remote string, src fs.Object,
 	err = g.Wait()
 	closeErr := chunkWriter.Close()
 	if err != nil {
+		fs.Debugf(f, "multi-thread copy: error when waiting for chunks: %w", err)
 		return nil, err
 	}
 	if closeErr != nil {
