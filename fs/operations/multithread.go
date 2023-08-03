@@ -230,12 +230,14 @@ func multiThreadCopy(ctx context.Context, f fs.Fs, remote string, src fs.Object,
 		return nil, fmt.Errorf("multi-thread copy: failed to close object after copy: %w", closeErr)
 	}
 
+	fs.Debugf(f, "HERE 2!!!")
 	obj, err := f.NewObject(ctx, remote)
 	if err != nil {
 		fs.Debugf(f, "multi-thread copy: error creating new object: %w", err)
 		return nil, fmt.Errorf("multi-thread copy: failed to find object after copy: %w", err)
 	}
 
+	fs.Debugf(f, "HERE 3!!!")
 	err = obj.SetModTime(ctx, src.ModTime(ctx))
 	switch err {
 	case nil, fs.ErrorCantSetModTime, fs.ErrorCantSetModTimeWithoutDelete:
@@ -244,6 +246,7 @@ func multiThreadCopy(ctx context.Context, f fs.Fs, remote string, src fs.Object,
 		return nil, fmt.Errorf("multi-thread copy: failed to set modification time: %w", err)
 	}
 
+	fs.Debugf(f, "HERE 4!!!")
 	fs.Debugf(src, "Finished multi-thread copy with %d parts of size %v", mc.numChunks, fs.SizeSuffix(mc.partSize))
 	return obj, nil
 }
