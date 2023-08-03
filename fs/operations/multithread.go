@@ -103,7 +103,8 @@ func (mc *multiThreadCopyState) copyStream(ctx context.Context, stream int, writ
 
 	rc, err := Open(ctx, mc.src, &fs.RangeOption{Start: start, End: end - 1})
 	if err != nil {
-		return fmt.Errorf("multipart copy: failed to open source: %w", err)
+		fs.Debugf(mc.src, "multi-thread copy: failed to open source", err)
+		return fmt.Errorf("multi-thread copy: failed to open source: %w", err)
 	}
 	defer fs.CheckClose(rc, &err)
 
@@ -224,11 +225,13 @@ func multiThreadCopy(ctx context.Context, f fs.Fs, remote string, src fs.Object,
 		return nil, err
 	}
 	if closeErr != nil {
+		fs.Debugf(f, "multi-thread copy: error closing chunk writer: %w", closeErr)
 		return nil, fmt.Errorf("multi-thread copy: failed to close object after copy: %w", closeErr)
 	}
 
 	obj, err := f.NewObject(ctx, remote)
 	if err != nil {
+		fs.Debugf(f, "multi-thread copy: error creating new object: %w", err)
 		return nil, fmt.Errorf("multi-thread copy: failed to find object after copy: %w", err)
 	}
 
@@ -236,6 +239,7 @@ func multiThreadCopy(ctx context.Context, f fs.Fs, remote string, src fs.Object,
 	switch err {
 	case nil, fs.ErrorCantSetModTime, fs.ErrorCantSetModTimeWithoutDelete:
 	default:
+		fs.Debugf(f, "multi-thread copy: failed to set modification time: %w", err)
 		return nil, fmt.Errorf("multi-thread copy: failed to set modification time: %w", err)
 	}
 
