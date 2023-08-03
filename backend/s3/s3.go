@@ -5134,8 +5134,10 @@ func (o *Object) SetModTime(ctx context.Context, modTime time.Time) error {
 	}
 	o.meta[metaMtime] = swift.TimeToFloatString(modTime)
 
+	fs.Debugf(o, "HERE 5!!!")
 	// Can't update metadata here, so return this error to force a recopy
 	if o.storageClass != nil && (*o.storageClass == "GLACIER" || *o.storageClass == "DEEP_ARCHIVE") {
+		fs.Debugf(o, "CANNOT SET MOD TIME")
 		return fs.ErrorCantSetModTime
 	}
 
