@@ -429,6 +429,7 @@ func Copy(ctx context.Context, f fs.Fs, dst fs.Object, remote string, src fs.Obj
 					streams = 2
 				}
 				dst, err = multiThreadCopy(ctx, f, remotePartial, src, int(streams), tr)
+				fs.Debugf(f, "MULTITHREAD COPY FAILED", err)
 				if err == nil {
 					newDst = dst
 				}
