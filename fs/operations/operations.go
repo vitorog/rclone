@@ -419,7 +419,14 @@ func Copy(ctx context.Context, f fs.Fs, dst fs.Object, remote string, src fs.Obj
 				})
 			}
 			if doMultiThreadCopy(ctx, f, src) {
-				dst, err = multiThreadCopy(ctx, f, remotePartial, src, ci.MultiThreadStreams, tr)
+				options := []fs.OpenOption{hashOption}
+				for _, option := range ci.UploadHeaders {
+					options = append(options, option)
+				}
+				if ci.MetadataSet != nil {
+					options = append(options, fs.MetadataOption(ci.MetadataSet))
+				}
+				dst, err = multiThreadCopy(ctx, f, remotePartial, src, ci.MultiThreadStreams, tr, options...)
 				if err == nil {
 					newDst = dst
 				}
